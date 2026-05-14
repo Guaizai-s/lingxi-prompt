@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f766e">
+  <title>灵犀 Prompt</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">AI 提示词库管理器</p>
+      <h1>灵犀 Prompt</h1>
+    </div>
+    <div class="status-pill" id="networkStatus">在线</div>
+  </header>
+
+  <main class="shell">
+    <section class="workspace">
+      <div class="toolbar" aria-label="搜索与筛选">
+        <label class="field search-field">
+          <span>关键词</span>
+          <input id="keywordInput" type="search" placeholder="搜索标题或内容">
+        </label>
+        <label class="field">
+          <span>分类</span>
+          <select id="categoryFilter">
+            <option value="">全部分类</option>
+          </select>
+        </label>
+        <button class="ghost-btn" id="clearFiltersBtn" type="button" title="清空筛选">清空</button>
+      </div>
+
+      <div class="tag-row" id="tagFilters" aria-label="标签筛选"></div>
+
+      <div class="list-head">
+        <h2>提示词列表</h2>
+        <span id="resultCount">0 条</span>
+      </div>
+      <div class="prompt-list" id="promptList"></div>
+    </section>
+
+    <aside class="editor-panel">
+      <form id="promptForm">
+        <div class="panel-head">
+          <h2 id="formTitle">新增提示词</h2>
+          <button class="icon-btn" id="resetFormBtn" type="button" title="新建">
+            <span aria-hidden="true">+</span>
+          </button>
+        </div>
+
+        <input id="promptId" type="hidden">
+
+        <label class="field">
+          <span>标题</span>
+          <input id="titleInput" maxlength="120" required placeholder="例如：代码审查助手">
+        </label>
+
+        <label class="field">
+          <span>内容</span>
+          <textarea id="contentInput" maxlength="5000" required placeholder="写下可复用的提示词内容"></textarea>
+        </label>
+
+        <label class="field">
+          <span>分类</span>
+          <input id="categoryInput" list="categoryOptions" maxlength="80" placeholder="设计 / 代码 / 写作">
+          <datalist id="categoryOptions"></datalist>
+        </label>
+
+        <label class="field">
+          <span>标签</span>
+          <input id="tagsInput" maxlength="200" placeholder="用逗号分隔，例如 Java, 后端">
+        </label>
+
+        <button class="primary-btn" type="submit">保存提示词</button>
+      </form>
+
+      <section class="category-box" aria-label="分类管理">
+        <div class="panel-head compact">
+          <h2>分类管理</h2>
+        </div>
+        <form class="inline-form" id="categoryForm">
+          <input id="categoryNameInput" maxlength="80" placeholder="新增分类">
+          <button class="ghost-btn" type="submit">添加</button>
+        </form>
+        <div class="category-list" id="categoryList"></div>
+      </section>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
