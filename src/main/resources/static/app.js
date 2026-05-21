@@ -25,6 +25,10 @@ const elements = {
   categoryOptions: $("#categoryOptions"),
   tagsInput: $("#tagsInput"),
   resetFormBtn: $("#resetFormBtn"),
+  exportBtn: $("#exportBtn"),
+  importBtn: $("#importBtn"),
+  importFileInput: $("#importFileInput"),
+  dataStatus: $("#dataStatus"),
   categoryForm: $("#categoryForm"),
   categoryNameInput: $("#categoryNameInput"),
   categoryList: $("#categoryList"),
@@ -268,6 +272,77 @@ async function copyPrompt(prompt, card) {
   }
 }
 
+async function exportLibrary() {
+  setDataStatus("正在导出...");
+  try {
+    const response = await fetch("/api/export");
+    if (!response.ok) {
+      throw new Error("导出失败");
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `lingxi-prompts-${date}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setDataStatus("导出完成");
+    showToast("JSON 已导出");
+  } catch (error) {
+    setDataStatus("导出失败");
+    showToast(error.message);
+  }
+}
+
+function openImportPicker() {
+  elements.importFileInput.value = "";
+  elements.importFileInput.click();
+}
+
+async function importLibrary(event) {
+  const file = event.target.files?.[0];
+  if (!file) {
+    return;
+  }
+  if (!confirm("导入会替换当前提示词库，建议先导出备份。确定继续吗？")) {
+    elements.importFileInput.value = "";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  setDataStatus("正在导入...");
+
+  try {
+    const response = await fetch("/api/import", {
+      method: "POST",
+      body: formData
+    });
+    if (!response.ok) {
+      const problem = await response.json().catch(() => ({}));
+      throw new Error(problem.detail || "导入失败，请检查 JSON 文件");
+    }
+    setDataStatus("导入完成");
+    showToast("JSON 已导入");
+    resetForm();
+    state.activeTag = "";
+    await loadOptions();
+    await loadPrompts();
+  } catch (error) {
+    setDataStatus("导入失败");
+    showToast(error.message);
+  } finally {
+    elements.importFileInput.value = "";
+  }
+}
+
+function setDataStatus(message) {
+  elements.dataStatus.textContent = message;
+}
+
 async function addCategory(event) {
   event.preventDefault();
   const name = elements.categoryNameInput.value.trim();
@@ -366,6 +441,9 @@ elements.clearFiltersBtn.addEventListener("click", () => {
 });
 elements.promptForm.addEventListener("submit", savePrompt);
 elements.resetFormBtn.addEventListener("click", resetForm);
+elements.exportBtn.addEventListener("click", exportLibrary);
+elements.importBtn.addEventListener("click", openImportPicker);
+elements.importFileInput.addEventListener("change", importLibrary);
 elements.categoryForm.addEventListener("submit", addCategory);
 window.addEventListener("online", () => {
   setNetworkStatus();

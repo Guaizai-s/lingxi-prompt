@@ -77,6 +77,27 @@
         <button class="primary-btn" type="submit">保存提示词</button>
       </form>
 
+      <section class="data-box" aria-label="导入导出">
+        <div class="panel-head compact">
+          <h2>导入 / 导出</h2>
+          <span class="mini-info" id="dataStatus">JSON 备份</span>
+        </div>
+        <div class="data-actions">
+          <button class="data-card export-card" id="exportBtn" type="button">
+            <span class="data-icon">↓</span>
+            <strong>导出 JSON</strong>
+            <small>保存当前提示词库</small>
+          </button>
+          <button class="data-card import-card" id="importBtn" type="button">
+            <span class="data-icon">↑</span>
+            <strong>导入 JSON</strong>
+            <small>从备份恢复数据</small>
+          </button>
+        </div>
+        <input id="importFileInput" type="file" accept="application/json,.json" hidden>
+        <p class="data-note">导入会用文件内容替换当前分类和提示词，请先导出备份。</p>
+      </section>
+
       <section class="category-box" aria-label="分类管理">
         <div class="panel-head compact">
           <h2>分类管理</h2>

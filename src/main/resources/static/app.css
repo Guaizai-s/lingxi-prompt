@@ -105,6 +105,7 @@ h2 {
 .editor-panel,
 .toolbar,
 .prompt-card,
+.data-box,
 .category-box {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -331,6 +332,82 @@ form {
   font-size: 16px;
 }
 
+.mini-info {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.data-box {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  box-shadow: none;
+}
+
+.data-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.data-card {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  min-height: 126px;
+  padding: 14px 10px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  text-align: center;
+}
+
+.data-card small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.data-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.export-card {
+  background: #effaf5;
+  border-color: #bdebd4;
+}
+
+.export-card .data-icon {
+  color: #047857;
+  background: #d6f7e4;
+}
+
+.import-card {
+  background: #f6f0ff;
+  border-color: #dfd1ff;
+}
+
+.import-card .data-icon {
+  color: #6d28d9;
+  background: #eadcff;
+}
+
+.data-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .inline-form {
   grid-template-columns: 1fr auto;
 }
@@ -407,5 +484,9 @@ form {
 
   .prompt-card header {
     flex-direction: column;
+  }
+
+  .data-actions {
+    grid-template-columns: 1fr;
   }
 }

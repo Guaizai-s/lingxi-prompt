@@ -1,4 +1,4 @@
-const CACHE_NAME = "lingxi-prompt-v3";
+const CACHE_NAME = "lingxi-prompt-v4";
 const SHELL = [
   "/",
   "/index.html",
