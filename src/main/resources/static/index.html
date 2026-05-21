@@ -3,112 +3,176 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0f766e">
+  <meta name="theme-color" content="#2f66ff">
   <title>灵犀 Prompt</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
-  <header class="app-header">
-    <div>
-      <p class="eyebrow">AI 提示词库管理器</p>
-      <h1>灵犀 Prompt</h1>
-    </div>
-    <div class="status-pill" id="networkStatus">在线</div>
-  </header>
-
-  <main class="shell">
-    <section class="workspace">
-      <div class="toolbar" aria-label="搜索与筛选">
-        <label class="field search-field">
-          <span>关键词</span>
-          <input id="keywordInput" type="search" placeholder="搜索标题或内容">
-        </label>
-        <label class="field">
-          <span>分类</span>
-          <select id="categoryFilter">
-            <option value="">全部分类</option>
-          </select>
-        </label>
-        <button class="ghost-btn" id="clearFiltersBtn" type="button" title="清空筛选">清空</button>
+  <main class="app-shell">
+    <section class="brand-panel" aria-label="应用介绍">
+      <div class="brand-mark">🤖</div>
+      <div>
+        <p class="eyebrow">AI 提示词库管理器</p>
+        <h1>灵犀 Prompt</h1>
+        <p class="brand-copy">高效管理你的 AI 提示词，激发无限创意</p>
       </div>
-
-      <div class="tag-row" id="tagFilters" aria-label="标签筛选"></div>
-
-      <div class="list-head">
-        <h2>提示词列表</h2>
-        <span id="resultCount">0 条</span>
-      </div>
-      <div class="prompt-list" id="promptList"></div>
+      <span class="status-pill" id="networkStatus">在线</span>
     </section>
 
-    <aside class="editor-panel">
-      <form id="promptForm">
-        <div class="panel-head">
-          <h2 id="formTitle">新增提示词</h2>
-          <button class="icon-btn" id="resetFormBtn" type="button" title="新建">
-            <span aria-hidden="true">+</span>
-          </button>
+    <section class="phone-frame">
+      <section class="app-page active" id="libraryPage" aria-label="提示词库">
+        <header class="page-header">
+          <button class="icon-btn menu-btn" type="button" title="菜单">☰</button>
+          <div>
+            <p class="page-kicker">AI 提示词库管理器</p>
+            <h2>提示词库</h2>
+          </div>
+          <button class="avatar-btn" type="button" title="个人中心">👤</button>
+        </header>
+
+        <div class="search-card">
+          <input id="keywordInput" type="search" placeholder="搜索提示词...">
+          <button class="round-btn" id="openToolsBtn" type="button" title="筛选">⌕</button>
         </div>
 
-        <input id="promptId" type="hidden">
-
-        <label class="field">
-          <span>标题</span>
-          <input id="titleInput" maxlength="120" required placeholder="例如：代码审查助手">
-        </label>
-
-        <label class="field">
-          <span>内容</span>
-          <textarea id="contentInput" maxlength="5000" required placeholder="写下可复用的提示词内容"></textarea>
-        </label>
-
-        <label class="field">
-          <span>分类</span>
-          <input id="categoryInput" list="categoryOptions" maxlength="80" placeholder="设计 / 代码 / 写作">
-          <datalist id="categoryOptions"></datalist>
-        </label>
-
-        <label class="field">
-          <span>标签</span>
-          <input id="tagsInput" maxlength="200" placeholder="用逗号分隔，例如 Java, 后端">
-        </label>
-
-        <button class="primary-btn" type="submit">保存提示词</button>
-      </form>
-
-      <section class="data-box" aria-label="导入导出">
-        <div class="panel-head compact">
-          <h2>导入 / 导出</h2>
-          <span class="mini-info" id="dataStatus">JSON 备份</span>
+        <div class="quick-section">
+          <div class="section-title">
+            <span>分类</span>
+            <button class="more-btn" id="openCategoriesBtn" type="button">•••</button>
+          </div>
+          <div class="category-pills" id="categoryPills"></div>
         </div>
-        <div class="data-actions">
-          <button class="data-card export-card" id="exportBtn" type="button">
-            <span class="data-icon">↓</span>
-            <strong>导出 JSON</strong>
-            <small>保存当前提示词库</small>
-          </button>
-          <button class="data-card import-card" id="importBtn" type="button">
-            <span class="data-icon">↑</span>
-            <strong>导入 JSON</strong>
-            <small>从备份恢复数据</small>
-          </button>
+
+        <div class="quick-section">
+          <div class="section-title">
+            <span>标签</span>
+            <button class="more-btn" id="openTagsBtn" type="button">•••</button>
+          </div>
+          <div class="tag-row" id="tagFilters" aria-label="标签筛选"></div>
         </div>
-        <input id="importFileInput" type="file" accept="application/json,.json" hidden>
-        <p class="data-note">导入会用文件内容替换当前分类和提示词，请先导出备份。</p>
+
+        <div class="list-head">
+          <h2>提示词列表</h2>
+          <span id="resultCount">0 条</span>
+        </div>
+        <div class="prompt-list" id="promptList"></div>
+
+        <button class="fab" id="newPromptBtn" type="button" title="新增提示词">+</button>
       </section>
 
-      <section class="category-box" aria-label="分类管理">
-        <div class="panel-head compact">
-          <h2>分类管理</h2>
-        </div>
-        <form class="inline-form" id="categoryForm">
-          <input id="categoryNameInput" maxlength="80" placeholder="新增分类">
-          <button class="ghost-btn" type="submit">添加</button>
+      <section class="app-page" id="editPage" aria-label="编辑提示词">
+        <header class="page-header">
+          <button class="icon-btn" id="backToLibraryFromEdit" type="button" title="返回">←</button>
+          <div>
+            <p class="page-kicker">编辑提示词</p>
+            <h2 id="formTitle">新增提示词</h2>
+          </div>
+          <button class="save-link" id="topSaveBtn" type="button">保存</button>
+        </header>
+
+        <form id="promptForm" class="edit-form">
+          <input id="promptId" type="hidden">
+
+          <label class="field">
+            <span>标题 <b>*</b></span>
+            <input id="titleInput" maxlength="120" required placeholder="例如：UI 设计规范生成器">
+          </label>
+
+          <label class="field">
+            <span>内容 <b>*</b></span>
+            <textarea id="contentInput" maxlength="5000" required placeholder="写下可复用的提示词内容"></textarea>
+          </label>
+
+          <label class="field">
+            <span>分类</span>
+            <input id="categoryInput" list="categoryOptions" maxlength="80" placeholder="设计 / 代码 / 写作">
+            <datalist id="categoryOptions"></datalist>
+          </label>
+
+          <label class="field">
+            <span>标签</span>
+            <input id="tagsInput" maxlength="200" placeholder="用逗号分隔，例如 UI/UX, 设计规范">
+          </label>
+
+          <div class="form-actions">
+            <button class="ghost-btn" id="cancelEditBtn" type="button">取消</button>
+            <button class="primary-btn" type="submit">保存</button>
+          </div>
         </form>
-        <div class="category-list" id="categoryList"></div>
       </section>
-    </aside>
+
+      <section class="app-page" id="toolsPage" aria-label="导入导出与筛选">
+        <header class="page-header">
+          <button class="icon-btn" id="backToLibraryFromTools" type="button" title="返回">←</button>
+          <div>
+            <p class="page-kicker">导入 / 导出 & 筛选</p>
+            <h2>数据管理</h2>
+          </div>
+          <button class="icon-btn" type="button" title="说明">ⓘ</button>
+        </header>
+
+        <section class="data-box" aria-label="导入导出">
+          <div class="data-actions">
+            <button class="data-card export-card" id="exportBtn" type="button">
+              <span class="data-icon">↓</span>
+              <strong>导出 JSON</strong>
+              <small>将所有提示词导出为 JSON 文件</small>
+            </button>
+            <button class="data-card import-card" id="importBtn" type="button">
+              <span class="data-icon">↑</span>
+              <strong>导入 JSON</strong>
+              <small>从 JSON 文件导入提示词数据</small>
+            </button>
+          </div>
+          <input id="importFileInput" type="file" accept="application/json,.json" hidden>
+          <div class="success-note">
+            <span>✓</span>
+            <p id="dataStatus">JSON 备份可用</p>
+          </div>
+        </section>
+
+        <section class="filter-panel" aria-label="筛选条件">
+          <h3>筛选条件</h3>
+          <label class="field">
+            <span>关键词搜索</span>
+            <input id="toolKeywordInput" type="search" placeholder="输入关键词搜索标题或内容...">
+          </label>
+          <label class="field">
+            <span>分类筛选</span>
+            <select id="categoryFilter">
+              <option value="">全部分类</option>
+            </select>
+          </label>
+          <div class="tool-actions">
+            <button class="ghost-btn" id="clearFiltersBtn" type="button">重置筛选</button>
+            <button class="primary-btn" id="applyFiltersBtn" type="button">应用筛选</button>
+          </div>
+        </section>
+
+        <section class="category-box" aria-label="分类管理">
+          <h3>分类管理</h3>
+          <form class="inline-form" id="categoryForm">
+            <input id="categoryNameInput" maxlength="80" placeholder="新增分类">
+            <button class="ghost-btn" type="submit">添加</button>
+          </form>
+          <div class="category-list" id="categoryList"></div>
+        </section>
+      </section>
+
+      <nav class="bottom-nav" aria-label="底部导航">
+        <button class="nav-btn active" data-view="library" type="button">📁<span>提示词库</span></button>
+        <button class="nav-btn" data-view="tools" type="button">⌕<span>筛选管理</span></button>
+        <button class="nav-btn" data-view="edit" type="button">⚙<span>编辑</span></button>
+      </nav>
+    </section>
+
+    <section class="feature-strip" aria-label="功能特点">
+      <div><strong>安全本地存储</strong><span>数据保存在本地数据库</span></div>
+      <div><strong>快速复制使用</strong><span>一键复制，提升效率</span></div>
+      <div><strong>灵活分类标签</strong><span>多维度管理，轻松查找</span></div>
+      <div><strong>导入导出备份</strong><span>JSON 格式，便于迁移</span></div>
+    </section>
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

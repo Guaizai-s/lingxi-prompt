@@ -3,16 +3,27 @@ const state = {
   categories: [],
   tags: [],
   activeTag: "",
-  editingId: null
+  activeCategory: "",
+  editingId: null,
+  view: "library"
 };
 
 const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 const elements = {
   networkStatus: $("#networkStatus"),
+  phoneFrame: $(".phone-frame"),
+  libraryPage: $("#libraryPage"),
+  editPage: $("#editPage"),
+  toolsPage: $("#toolsPage"),
+  navButtons: $$(".nav-btn"),
   keywordInput: $("#keywordInput"),
+  toolKeywordInput: $("#toolKeywordInput"),
   categoryFilter: $("#categoryFilter"),
+  categoryPills: $("#categoryPills"),
   clearFiltersBtn: $("#clearFiltersBtn"),
+  applyFiltersBtn: $("#applyFiltersBtn"),
   tagFilters: $("#tagFilters"),
   promptList: $("#promptList"),
   resultCount: $("#resultCount"),
@@ -24,7 +35,14 @@ const elements = {
   categoryInput: $("#categoryInput"),
   categoryOptions: $("#categoryOptions"),
   tagsInput: $("#tagsInput"),
-  resetFormBtn: $("#resetFormBtn"),
+  newPromptBtn: $("#newPromptBtn"),
+  topSaveBtn: $("#topSaveBtn"),
+  cancelEditBtn: $("#cancelEditBtn"),
+  openToolsBtn: $("#openToolsBtn"),
+  openCategoriesBtn: $("#openCategoriesBtn"),
+  openTagsBtn: $("#openTagsBtn"),
+  backToLibraryFromEdit: $("#backToLibraryFromEdit"),
+  backToLibraryFromTools: $("#backToLibraryFromTools"),
   exportBtn: $("#exportBtn"),
   importBtn: $("#importBtn"),
   importFileInput: $("#importFileInput"),
@@ -40,6 +58,21 @@ function showToast(message) {
   elements.toast.classList.add("show");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => elements.toast.classList.remove("show"), 1800);
+}
+
+function showView(view) {
+  state.view = view;
+  elements.libraryPage.classList.toggle("active", view === "library");
+  elements.editPage.classList.toggle("active", view === "edit");
+  elements.toolsPage.classList.toggle("active", view === "tools");
+  elements.navButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.view === view);
+  });
+  elements.phoneFrame.classList.toggle("subpage", view !== "library");
+  const nextHash = `#${view}`;
+  if (window.location.hash !== nextHash) {
+    window.history.replaceState(null, "", nextHash);
+  }
 }
 
 function setNetworkStatus() {
@@ -66,12 +99,20 @@ async function request(path, options = {}) {
   return response.json();
 }
 
+function getKeyword() {
+  return elements.keywordInput.value.trim() || elements.toolKeywordInput.value.trim();
+}
+
+function syncKeywordInputs(value) {
+  elements.keywordInput.value = value;
+  elements.toolKeywordInput.value = value;
+}
+
 function buildQuery() {
   const params = new URLSearchParams();
-  const keyword = elements.keywordInput.value.trim();
-  const category = elements.categoryFilter.value;
+  const keyword = getKeyword();
   if (keyword) params.set("keyword", keyword);
-  if (category) params.set("category", category);
+  if (state.activeCategory) params.set("category", state.activeCategory);
   if (state.activeTag) params.set("tag", state.activeTag);
   return params.toString();
 }
@@ -104,12 +145,12 @@ async function loadOptions() {
     state.tags = JSON.parse(localStorage.getItem("lingxi.tags.cache") || "[]");
   }
   renderCategoryOptions();
+  renderCategoryPills();
   renderTags();
   renderCategoryManager();
 }
 
 function renderCategoryOptions() {
-  const selected = elements.categoryFilter.value;
   elements.categoryFilter.innerHTML = `<option value="">全部分类</option>`;
   elements.categoryOptions.innerHTML = "";
   state.categories.forEach((category) => {
@@ -122,14 +163,30 @@ function renderCategoryOptions() {
     dataOption.value = category;
     elements.categoryOptions.appendChild(dataOption);
   });
-  elements.categoryFilter.value = selected;
+  elements.categoryFilter.value = state.activeCategory;
+}
+
+function renderCategoryPills() {
+  const all = ["全部", ...state.categories];
+  elements.categoryPills.innerHTML = "";
+  all.forEach((category) => {
+    const value = category === "全部" ? "" : category;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `filter-pill${state.activeCategory === value ? " active" : ""}`;
+    button.textContent = category;
+    button.addEventListener("click", () => {
+      state.activeCategory = value;
+      elements.categoryFilter.value = value;
+      renderCategoryPills();
+      loadPrompts();
+    });
+    elements.categoryPills.appendChild(button);
+  });
 }
 
 function renderTags() {
   elements.tagFilters.innerHTML = "";
-  if (state.tags.length === 0) {
-    return;
-  }
   state.tags.forEach((tag) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -156,23 +213,18 @@ function renderPrompts() {
   state.prompts.forEach((prompt) => {
     const card = document.createElement("article");
     card.className = "prompt-card";
-    const tags = prompt.tags?.map((tag) => `<span># ${escapeHtml(tag)}</span>`).join("") || "";
+    const tags = prompt.tags?.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("") || "";
     card.innerHTML = `
-      <header>
-        <div>
-          <h3 class="prompt-title">${escapeHtml(prompt.title)}</h3>
-          <div class="prompt-meta">
-            <span>${escapeHtml(prompt.category || "未分类")}</span>
-            ${tags}
-          </div>
-        </div>
-        <span class="copy-state">已复制</span>
-      </header>
+      <div class="card-icon">${getCategoryIcon(prompt.category)}</div>
+      <button class="star-btn" type="button" title="收藏">☆</button>
+      <h3 class="prompt-title">${escapeHtml(prompt.title)}</h3>
       <p class="prompt-content">${escapeHtml(prompt.content)}</p>
+      <div class="prompt-tags">${tags}</div>
       <div class="card-actions">
         <button class="ghost-btn copy-btn" type="button">复制</button>
         <button class="ghost-btn edit-btn" type="button">编辑</button>
         <button class="danger-btn delete-btn" type="button">删除</button>
+        <span class="copy-state">已复制</span>
       </div>
     `;
     card.querySelector(".copy-btn").addEventListener("click", () => copyPrompt(prompt, card));
@@ -181,6 +233,13 @@ function renderPrompts() {
     card.addEventListener("dblclick", () => copyPrompt(prompt, card));
     elements.promptList.appendChild(card);
   });
+}
+
+function getCategoryIcon(category = "") {
+  if (category.includes("代码")) return "{}";
+  if (category.includes("写作")) return "✎";
+  if (category.includes("设计")) return "◇";
+  return "✦";
 }
 
 function renderCategoryManager() {
@@ -211,6 +270,7 @@ function editPrompt(prompt) {
   elements.contentInput.value = prompt.content;
   elements.categoryInput.value = prompt.category || "";
   elements.tagsInput.value = (prompt.tags || []).join(", ");
+  showView("edit");
   elements.titleInput.focus();
 }
 
@@ -219,6 +279,12 @@ function resetForm() {
   elements.promptForm.reset();
   elements.promptId.value = "";
   elements.formTitle.textContent = "新增提示词";
+}
+
+function newPrompt() {
+  resetForm();
+  showView("edit");
+  elements.titleInput.focus();
 }
 
 async function savePrompt(event) {
@@ -241,6 +307,7 @@ async function savePrompt(event) {
     resetForm();
     await loadOptions();
     await loadPrompts();
+    showView("library");
   } catch (error) {
     showToast(error.message);
   }
@@ -289,7 +356,7 @@ async function exportLibrary() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    setDataStatus("导出完成");
+    setDataStatus(`导出成功：lingxi-prompts-${date}.json`);
     showToast("JSON 已导出");
   } catch (error) {
     setDataStatus("导出失败");
@@ -325,12 +392,14 @@ async function importLibrary(event) {
       const problem = await response.json().catch(() => ({}));
       throw new Error(problem.detail || "导入失败，请检查 JSON 文件");
     }
-    setDataStatus("导入完成");
+    setDataStatus(`导入成功：${file.name}`);
     showToast("JSON 已导入");
     resetForm();
     state.activeTag = "";
+    state.activeCategory = "";
     await loadOptions();
     await loadPrompts();
+    showView("library");
   } catch (error) {
     setDataStatus("导入失败");
     showToast(error.message);
@@ -386,7 +455,8 @@ async function deleteCategory(category) {
   }
   try {
     await request(`/api/categories/${encodeURIComponent(category)}`, { method: "DELETE" });
-    if (elements.categoryFilter.value === category) {
+    if (state.activeCategory === category) {
+      state.activeCategory = "";
       elements.categoryFilter.value = "";
     }
     showToast("分类已删除");
@@ -425,26 +495,63 @@ async function init() {
   setNetworkStatus();
   await loadOptions();
   await loadPrompts();
+  const hashView = window.location.hash.replace("#", "");
+  showView(["library", "edit", "tools"].includes(hashView) ? hashView : "library");
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   }
 }
 
-elements.keywordInput.addEventListener("input", debounce(loadPrompts));
-elements.categoryFilter.addEventListener("change", loadPrompts);
+elements.keywordInput.addEventListener("input", debounce(() => {
+  syncKeywordInputs(elements.keywordInput.value);
+  loadPrompts();
+}));
+elements.toolKeywordInput.addEventListener("input", debounce(() => {
+  syncKeywordInputs(elements.toolKeywordInput.value);
+  loadPrompts();
+}));
+elements.categoryFilter.addEventListener("change", () => {
+  state.activeCategory = elements.categoryFilter.value;
+  renderCategoryPills();
+  loadPrompts();
+});
 elements.clearFiltersBtn.addEventListener("click", () => {
-  elements.keywordInput.value = "";
-  elements.categoryFilter.value = "";
+  syncKeywordInputs("");
+  state.activeCategory = "";
   state.activeTag = "";
+  elements.categoryFilter.value = "";
+  renderCategoryPills();
   renderTags();
   loadPrompts();
 });
+elements.applyFiltersBtn.addEventListener("click", () => {
+  loadPrompts();
+  showView("library");
+});
 elements.promptForm.addEventListener("submit", savePrompt);
-elements.resetFormBtn.addEventListener("click", resetForm);
+elements.topSaveBtn.addEventListener("click", () => {
+  elements.promptForm.requestSubmit();
+});
+elements.cancelEditBtn.addEventListener("click", () => showView("library"));
+elements.backToLibraryFromEdit.addEventListener("click", () => showView("library"));
+elements.backToLibraryFromTools.addEventListener("click", () => showView("library"));
+elements.newPromptBtn.addEventListener("click", newPrompt);
+elements.openToolsBtn.addEventListener("click", () => showView("tools"));
+elements.openCategoriesBtn.addEventListener("click", () => showView("tools"));
+elements.openTagsBtn.addEventListener("click", () => showView("tools"));
 elements.exportBtn.addEventListener("click", exportLibrary);
 elements.importBtn.addEventListener("click", openImportPicker);
 elements.importFileInput.addEventListener("change", importLibrary);
 elements.categoryForm.addEventListener("submit", addCategory);
+elements.navButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (button.dataset.view === "edit") {
+      newPrompt();
+    } else {
+      showView(button.dataset.view);
+    }
+  });
+});
 window.addEventListener("online", () => {
   setNetworkStatus();
   loadOptions();
