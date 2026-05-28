@@ -1,9 +1,10 @@
-const CACHE_NAME = "lingxi-prompt-v5";
+// 升级缓存版本号，强制浏览器放弃旧缓存
+const CACHE_NAME = "lingxi-prompt-v6-modern";
+
+// 更新缓存清单：移除了旧的 app.css 和 app.js，保留核心文件
 const SHELL = [
   "/",
   "/index.html",
-  "/app.css",
-  "/app.js",
   "/manifest.json",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png"

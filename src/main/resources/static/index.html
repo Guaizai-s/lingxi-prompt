@@ -2,181 +2,647 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#2f66ff">
-  <title>灵犀 Prompt</title>
-  <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="/app.css">
+  <title>灵犀 Prompt - 提示词库管理器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 使用 Lucide Icons 还原设计图中的精致图标 -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* 隐藏滚动条但保留滚动功能 */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* 平滑过渡效果 */
+    .view-page { display: none; animation: fadeIn 0.3s ease; }
+    .view-page.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    /* 移动端底部安全区适配 */
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eff4ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb' }
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body>
-  <main class="app-shell">
-    <section class="brand-panel" aria-label="应用介绍">
-      <div class="brand-mark">🤖</div>
-      <div>
-        <p class="eyebrow">AI 提示词库管理器</p>
-        <h1>灵犀 Prompt</h1>
-        <p class="brand-copy">高效管理你的 AI 提示词，激发无限创意</p>
+<body class="bg-[#f4f7fa] text-slate-800 font-sans h-screen overflow-hidden flex selection:bg-brand-100 selection:text-brand-600">
+
+  <!-- ================= 侧边栏 (仅电脑端显示) ================= -->
+  <aside class="hidden md:flex w-64 flex-col bg-white border-r border-slate-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
+    <div class="p-6 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-brand-500/30">
+        <i data-lucide="bot" class="w-6 h-6"></i>
       </div>
-      <span class="status-pill" id="networkStatus">在线</span>
+      <div>
+        <h1 class="font-bold text-lg leading-tight tracking-tight">灵犀 Prompt</h1>
+        <p class="text-[11px] text-slate-400 font-medium">AI 提示词库管理器</p>
+      </div>
+    </div>
+    
+    <nav class="flex-1 px-4 space-y-2 mt-4" id="desktopNav">
+      <button data-view="library" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-slate-500 hover:bg-slate-50 active-nav">
+        <i data-lucide="layout-grid" class="w-5 h-5"></i> 提示词库
+      </button>
+      <button data-view="tools" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-slate-500 hover:bg-slate-50">
+        <i data-lucide="layers" class="w-5 h-5"></i> 分类与数据
+      </button>
+      <button data-view="edit" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-slate-500 hover:bg-slate-50" onclick="newPrompt()">
+        <i data-lucide="pen-square" class="w-5 h-5"></i> 发布提示词
+      </button>
+    </nav>
+    
+    <div class="p-6">
+      <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" id="networkIndicator"></div>
+        <span class="text-xs font-semibold text-slate-600" id="networkText">服务在线</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= 主内容区 ================= -->
+  <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+    
+    <!-- 1. 提示词库视图 -->
+    <section id="libraryPage" class="view-page active flex-col h-full overflow-y-auto no-scrollbar p-4 md:p-8 pb-24 md:pb-8">
+      
+      <!-- 顶部 Header (移动端) -->
+      <header class="md:hidden flex items-center justify-between mb-6">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center text-white">
+            <i data-lucide="bot" class="w-5 h-5"></i>
+          </div>
+          <h1 class="font-bold text-lg tracking-tight">灵犀 Prompt</h1>
+        </div>
+        <div class="w-8 h-8 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center border-2 border-white shadow-sm">
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" class="w-full h-full object-cover">
+        </div>
+      </header>
+
+      <!-- 搜索框 -->
+      <div class="relative w-full max-w-2xl mb-6 md:mb-8">
+        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+        <input type="text" id="keywordInput" placeholder="搜索提示词、场景或功能..." class="w-full h-12 md:h-14 pl-12 pr-4 bg-white border border-slate-200 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-sm md:text-base placeholder:text-slate-400">
+      </div>
+
+      <!-- 分类 & 标签筛选区 -->
+      <div class="flex flex-col gap-5 mb-8">
+        <div>
+          <div class="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">分类</div>
+          <div class="flex flex-wrap gap-2" id="categoryPills">
+            <!-- 动态生成 -->
+          </div>
+        </div>
+        <div>
+          <div class="text-xs font-bold text-slate-400 mb-3 uppercase tracking-wider">标签</div>
+          <div class="flex flex-wrap gap-2" id="tagFilters">
+            <!-- 动态生成 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 提示词列表卡片区 -->
+      <div class="flex items-center justify-between mb-4 mt-2">
+        <h2 class="font-bold text-lg">全部库存 <span class="text-brand-500 text-sm bg-brand-50 px-2 py-0.5 rounded-full ml-1" id="resultCount">0</span></h2>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6" id="promptList">
+        <!-- 动态生成 -->
+      </div>
+      
+      <!-- 移动端悬浮添加按钮 -->
+      <button class="md:hidden fixed right-6 bottom-24 w-14 h-14 bg-brand-600 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(37,99,235,0.4)] z-50 hover:bg-brand-700 active:scale-95 transition-transform" onclick="newPrompt()">
+        <i data-lucide="plus" class="w-6 h-6"></i>
+      </button>
     </section>
 
-    <section class="phone-frame">
-      <section class="app-page active" id="libraryPage" aria-label="提示词库">
-        <header class="page-header">
-          <button class="icon-btn menu-btn" type="button" title="菜单">☰</button>
-          <div>
-            <p class="page-kicker">AI 提示词库管理器</p>
-            <h2>提示词库</h2>
+    <!-- 2. 编辑提示词视图 -->
+    <section id="editPage" class="view-page flex-col h-full overflow-y-auto no-scrollbar p-4 md:p-8 bg-white/50 backdrop-blur-sm pb-24 md:pb-8">
+      <div class="max-w-2xl w-full mx-auto bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-8">
+        <div class="flex items-center justify-between mb-8">
+          <div class="flex items-center gap-3">
+            <button class="md:hidden w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-500" onclick="showView('library')">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            </button>
+            <h2 class="text-xl font-bold" id="formTitle">新建提示词</h2>
           </div>
-          <button class="avatar-btn" type="button" title="个人中心">👤</button>
-        </header>
-
-        <div class="search-card">
-          <input id="keywordInput" type="search" placeholder="搜索提示词...">
-          <button class="round-btn" id="openToolsBtn" type="button" title="筛选">⌕</button>
+          <button id="topSaveBtn" class="hidden md:flex text-brand-600 bg-brand-50 hover:bg-brand-100 px-4 py-2 rounded-xl text-sm font-bold transition-colors">
+            <i data-lucide="check" class="w-4 h-4 mr-1"></i> 保存
+          </button>
         </div>
 
-        <div class="quick-section">
-          <div class="section-title">
-            <span>分类</span>
-            <button class="more-btn" id="openCategoriesBtn" type="button">•••</button>
+        <form id="promptForm" class="space-y-6">
+          <input type="hidden" id="promptId">
+          
+          <div class="space-y-2">
+            <label class="text-sm font-bold text-slate-700">标题 <span class="text-red-500">*</span></label>
+            <input type="text" id="titleInput" required placeholder="如：小红书爆款文案生成器" class="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-sm">
           </div>
-          <div class="category-pills" id="categoryPills"></div>
-        </div>
 
-        <div class="quick-section">
-          <div class="section-title">
-            <span>标签</span>
-            <button class="more-btn" id="openTagsBtn" type="button">•••</button>
+          <div class="space-y-2">
+            <label class="text-sm font-bold text-slate-700">提示词内容 <span class="text-red-500">*</span></label>
+            <textarea id="contentInput" required placeholder="请清晰地描述背景、角色、任务和输出格式要求..." class="w-full h-48 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-sm resize-none"></textarea>
           </div>
-          <div class="tag-row" id="tagFilters" aria-label="标签筛选"></div>
-        </div>
 
-        <div class="list-head">
-          <h2>提示词列表</h2>
-          <span id="resultCount">0 条</span>
-        </div>
-        <div class="prompt-list" id="promptList"></div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-2">
+              <label class="text-sm font-bold text-slate-700">分类</label>
+              <div class="relative">
+                <input type="text" id="categoryInput" list="categoryOptions" placeholder="选择或输入新分类" class="w-full h-12 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-sm">
+                <i data-lucide="folder" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                <datalist id="categoryOptions"></datalist>
+              </div>
+            </div>
 
-        <button class="fab" id="newPromptBtn" type="button" title="新增提示词">+</button>
-      </section>
-
-      <section class="app-page" id="editPage" aria-label="编辑提示词">
-        <header class="page-header">
-          <button class="icon-btn" id="backToLibraryFromEdit" type="button" title="返回">←</button>
-          <div>
-            <p class="page-kicker">编辑提示词</p>
-            <h2 id="formTitle">新增提示词</h2>
+            <div class="space-y-2">
+              <label class="text-sm font-bold text-slate-700">标签</label>
+              <div class="relative">
+                <input type="text" id="tagsInput" placeholder="用逗号分隔，如：小红书, 文案" class="w-full h-12 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-sm">
+                <i data-lucide="tag" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+              </div>
+            </div>
           </div>
-          <button class="save-link" id="topSaveBtn" type="button">保存</button>
-        </header>
 
-        <form id="promptForm" class="edit-form">
-          <input id="promptId" type="hidden">
-
-          <label class="field">
-            <span>标题 <b>*</b></span>
-            <input id="titleInput" maxlength="120" required placeholder="例如：UI 设计规范生成器">
-          </label>
-
-          <label class="field">
-            <span>内容 <b>*</b></span>
-            <textarea id="contentInput" maxlength="5000" required placeholder="写下可复用的提示词内容"></textarea>
-          </label>
-
-          <label class="field">
-            <span>分类</span>
-            <input id="categoryInput" list="categoryOptions" maxlength="80" placeholder="设计 / 代码 / 写作">
-            <datalist id="categoryOptions"></datalist>
-          </label>
-
-          <label class="field">
-            <span>标签</span>
-            <input id="tagsInput" maxlength="200" placeholder="用逗号分隔，例如 UI/UX, 设计规范">
-          </label>
-
-          <div class="form-actions">
-            <button class="ghost-btn" id="cancelEditBtn" type="button">取消</button>
-            <button class="primary-btn" type="submit">保存</button>
+          <div class="pt-6 border-t border-slate-100 flex gap-3">
+            <button type="button" class="flex-1 md:flex-none md:w-32 h-12 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors" onclick="showView('library')">取消</button>
+            <button type="submit" class="flex-1 h-12 bg-brand-600 text-white font-bold rounded-xl shadow-lg shadow-brand-500/30 hover:bg-brand-700 transition-colors">保存提示词</button>
           </div>
         </form>
-      </section>
-
-      <section class="app-page" id="toolsPage" aria-label="导入导出与筛选">
-        <header class="page-header">
-          <button class="icon-btn" id="backToLibraryFromTools" type="button" title="返回">←</button>
-          <div>
-            <p class="page-kicker">导入 / 导出 & 筛选</p>
-            <h2>数据管理</h2>
-          </div>
-          <button class="icon-btn" type="button" title="说明">ⓘ</button>
-        </header>
-
-        <section class="data-box" aria-label="导入导出">
-          <div class="data-actions">
-            <button class="data-card export-card" id="exportBtn" type="button">
-              <span class="data-icon">↓</span>
-              <strong>导出 JSON</strong>
-              <small>将所有提示词导出为 JSON 文件</small>
-            </button>
-            <button class="data-card import-card" id="importBtn" type="button">
-              <span class="data-icon">↑</span>
-              <strong>导入 JSON</strong>
-              <small>从 JSON 文件导入提示词数据</small>
-            </button>
-          </div>
-          <input id="importFileInput" type="file" accept="application/json,.json" hidden>
-          <div class="success-note">
-            <span>✓</span>
-            <p id="dataStatus">JSON 备份可用</p>
-          </div>
-        </section>
-
-        <section class="filter-panel" aria-label="筛选条件">
-          <h3>筛选条件</h3>
-          <label class="field">
-            <span>关键词搜索</span>
-            <input id="toolKeywordInput" type="search" placeholder="输入关键词搜索标题或内容...">
-          </label>
-          <label class="field">
-            <span>分类筛选</span>
-            <select id="categoryFilter">
-              <option value="">全部分类</option>
-            </select>
-          </label>
-          <div class="tool-actions">
-            <button class="ghost-btn" id="clearFiltersBtn" type="button">重置筛选</button>
-            <button class="primary-btn" id="applyFiltersBtn" type="button">应用筛选</button>
-          </div>
-        </section>
-
-        <section class="category-box" aria-label="分类管理">
-          <h3>分类管理</h3>
-          <form class="inline-form" id="categoryForm">
-            <input id="categoryNameInput" maxlength="80" placeholder="新增分类">
-            <button class="ghost-btn" type="submit">添加</button>
-          </form>
-          <div class="category-list" id="categoryList"></div>
-        </section>
-      </section>
-
-      <nav class="bottom-nav" aria-label="底部导航">
-        <button class="nav-btn active" data-view="library" type="button">📁<span>提示词库</span></button>
-        <button class="nav-btn" data-view="tools" type="button">⌕<span>筛选管理</span></button>
-        <button class="nav-btn" data-view="edit" type="button">⚙<span>编辑</span></button>
-      </nav>
+      </div>
     </section>
 
-    <section class="feature-strip" aria-label="功能特点">
-      <div><strong>安全本地存储</strong><span>数据保存在本地数据库</span></div>
-      <div><strong>快速复制使用</strong><span>一键复制，提升效率</span></div>
-      <div><strong>灵活分类标签</strong><span>多维度管理，轻松查找</span></div>
-      <div><strong>导入导出备份</strong><span>JSON 格式，便于迁移</span></div>
+    <!-- 3. 数据与工具视图 -->
+    <section id="toolsPage" class="view-page flex-col h-full overflow-y-auto no-scrollbar p-4 md:p-8 bg-white/50 backdrop-blur-sm pb-24 md:pb-8">
+      <div class="max-w-4xl w-full mx-auto space-y-6 md:space-y-8">
+        
+        <div class="flex items-center gap-3 mb-4 md:mb-8">
+          <button class="md:hidden w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-500" onclick="showView('library')">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          </button>
+          <h2 class="text-2xl font-bold">分类与数据管理</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+          
+          <!-- 左侧：导入导出 -->
+          <div class="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
+            <div class="flex items-center gap-2 mb-6">
+              <i data-lucide="database" class="w-5 h-5 text-brand-500"></i>
+              <h3 class="font-bold text-lg">数据备份与迁移</h3>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6">
+              <button id="exportBtn" class="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-emerald-100 bg-emerald-50 hover:bg-emerald-100/50 transition-colors group">
+                <div class="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                  <i data-lucide="download" class="w-6 h-6"></i>
+                </div>
+                <div class="text-center">
+                  <span class="block font-bold text-emerald-700">导出 JSON</span>
+                  <span class="text-[11px] text-emerald-600/70 mt-1">保存到本地</span>
+                </div>
+              </button>
+
+              <button id="importBtn" class="flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-purple-100 bg-purple-50 hover:bg-purple-100/50 transition-colors group">
+                <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                  <i data-lucide="upload" class="w-6 h-6"></i>
+                </div>
+                <div class="text-center">
+                  <span class="block font-bold text-purple-700">导入 JSON</span>
+                  <span class="text-[11px] text-purple-600/70 mt-1">将覆盖当前数据</span>
+                </div>
+              </button>
+              <input type="file" id="importFileInput" accept=".json" class="hidden">
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm">
+              <div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 text-slate-500"><i data-lucide="info" class="w-3 h-3"></i></div>
+              <span id="dataStatus" class="text-slate-600">所有数据均安全存储于服务器及本地环境。</span>
+            </div>
+          </div>
+
+          <!-- 右侧：分类管理 -->
+          <div class="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex flex-col">
+            <div class="flex items-center gap-2 mb-6">
+              <i data-lucide="folder-cog" class="w-5 h-5 text-brand-500"></i>
+              <h3 class="font-bold text-lg">分类字典</h3>
+            </div>
+
+            <form id="categoryForm" class="flex gap-3 mb-6">
+              <input type="text" id="categoryNameInput" placeholder="输入新分类名称..." required class="flex-1 h-11 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 text-sm">
+              <button type="submit" class="h-11 px-5 bg-slate-800 text-white text-sm font-bold rounded-xl hover:bg-slate-700 transition-colors">添加</button>
+            </form>
+
+            <div class="flex-1 overflow-y-auto no-scrollbar pr-2 space-y-2 min-h-[200px]" id="categoryList">
+              <!-- 动态生成 -->
+            </div>
+          </div>
+          
+        </div>
+      </div>
     </section>
+
   </main>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <!-- ================= 移动端底部导航 ================= -->
+  <nav class="md:hidden fixed bottom-0 w-full bg-white/90 backdrop-blur-md border-t border-slate-100 flex justify-around p-2 pb-safe z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.03)]" id="mobileNav">
+    <button data-view="library" class="nav-btn active-nav flex-1 flex flex-col items-center gap-1 py-2 text-slate-400">
+      <i data-lucide="layout-grid" class="w-5 h-5 transition-transform"></i>
+      <span class="text-[10px] font-bold">提示词</span>
+    </button>
+    <div class="flex-1 flex justify-center -mt-6">
+      <!-- 占位给中间的 FAB 悬浮按钮，此处不需要实际按钮 -->
+    </div>
+    <button data-view="tools" class="nav-btn flex-1 flex flex-col items-center gap-1 py-2 text-slate-400">
+      <i data-lucide="layers" class="w-5 h-5 transition-transform"></i>
+      <span class="text-[10px] font-bold">数据</span>
+    </button>
+  </nav>
 
-  <script src="/app.js" defer></script>
+  <!-- 全局 Toast 提示 -->
+  <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 px-6 py-3 bg-slate-800/95 backdrop-blur text-white text-sm font-bold rounded-full shadow-xl z-50 transition-all duration-300 opacity-0 pointer-events-none translate-y-[-20px] flex items-center gap-2">
+    <i data-lucide="bell" class="w-4 h-4 text-brand-400"></i>
+    <span id="toastMsg">操作成功</span>
+  </div>
+
+  <style>
+    /* 动态激活状态样式覆盖 */
+    .nav-btn.active-nav { color: #2563eb !important; background-color: #eff4ff !important; }
+    .md\:hidden .nav-btn.active-nav { background-color: transparent !important; }
+    .md\:hidden .nav-btn.active-nav i { transform: translateY(-2px); color: #2563eb; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  </style>
+
+  <script>
+    // --- 核心状态与初始化 ---
+    const state = { prompts: [], categories: [], tags: [], activeTag: "", activeCategory: "", editingId: null, view: "library" };
+    const $ = selector => document.querySelector(selector);
+    const $$ = selector => Array.from(document.querySelectorAll(selector));
+
+    const elements = {
+      networkIndicator: $("#networkIndicator"), networkText: $("#networkText"),
+      libraryPage: $("#libraryPage"), editPage: $("#editPage"), toolsPage: $("#toolsPage"),
+      navButtons: $$(".nav-btn"), keywordInput: $("#keywordInput"),
+      categoryPills: $("#categoryPills"), tagFilters: $("#tagFilters"),
+      promptList: $("#promptList"), resultCount: $("#resultCount"),
+      promptForm: $("#promptForm"), promptId: $("#promptId"), formTitle: $("#formTitle"),
+      titleInput: $("#titleInput"), contentInput: $("#contentInput"),
+      categoryInput: $("#categoryInput"), categoryOptions: $("#categoryOptions"),
+      tagsInput: $("#tagsInput"), topSaveBtn: $("#topSaveBtn"),
+      exportBtn: $("#exportBtn"), importBtn: $("#importBtn"), importFileInput: $("#importFileInput"),
+      dataStatus: $("#dataStatus"), categoryForm: $("#categoryForm"),
+      categoryNameInput: $("#categoryNameInput"), categoryList: $("#categoryList"),
+      toast: $("#toast"), toastMsg: $("#toastMsg")
+    };
+
+    // --- UI 交互辅助函数 ---
+    function showToast(message) {
+      elements.toastMsg.textContent = message;
+      elements.toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => elements.toast.classList.remove("show"), 2000);
+    }
+
+    function showView(view) {
+      state.view = view;
+      ['libraryPage', 'editPage', 'toolsPage'].forEach(id => $(`#${id}`).classList.remove("active"));
+      $(`#${view}Page`).classList.add("active");
+      
+      elements.navButtons.forEach(btn => {
+        if(btn.dataset.view === view) btn.classList.add("active-nav");
+        else btn.classList.remove("active-nav");
+      });
+      lucide.createIcons();
+    }
+
+    function updateNetworkStatus() {
+      const online = navigator.onLine;
+      elements.networkIndicator.className = online ? "w-2 h-2 rounded-full bg-emerald-400 animate-pulse" : "w-2 h-2 rounded-full bg-red-400";
+      elements.networkText.textContent = online ? "服务在线" : "离线模式";
+      elements.networkText.className = online ? "text-xs font-semibold text-emerald-600" : "text-xs font-semibold text-red-600";
+    }
+
+    // --- API 请求封装 ---
+    async function request(path, options = {}) {
+      const response = await fetch(path, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        ...options
+      });
+      if (!response.ok) {
+        const problem = await response.json().catch(() => ({}));
+        throw new Error(problem.detail || "请求失败");
+      }
+      return response.status === 204 ? null : response.json();
+    }
+
+    // --- 数据加载与渲染 ---
+    async function loadOptions() {
+      try {
+        const [categories, tags] = await Promise.all([request("/api/categories"), request("/api/tags")]);
+        state.categories = categories; state.tags = tags;
+        localStorage.setItem("lx.cat", JSON.stringify(categories));
+        localStorage.setItem("lx.tag", JSON.stringify(tags));
+      } catch (e) {
+        state.categories = JSON.parse(localStorage.getItem("lx.cat") || "[]");
+        state.tags = JSON.parse(localStorage.getItem("lx.tag") || "[]");
+      }
+      renderFilters();
+      renderCategoryManager();
+    }
+
+    async function loadPrompts() {
+      const params = new URLSearchParams();
+      const kw = elements.keywordInput.value.trim();
+      if (kw) params.set("keyword", kw);
+      if (state.activeCategory) params.set("category", state.activeCategory);
+      if (state.activeTag) params.set("tag", state.activeTag);
+      
+      try {
+        state.prompts = await request(`/api/prompts${params.toString() ? `?${params.toString()}` : ""}`);
+        localStorage.setItem("lx.data", JSON.stringify(state.prompts));
+      } catch (e) {
+        state.prompts = JSON.parse(localStorage.getItem("lx.data") || "[]");
+      }
+      renderPrompts();
+      renderFilters(); // 根据数据更新分类/标签上的数量统计 (优化)
+    }
+
+    // 获取精美的类别图标配置 (还原设计图色彩体系)
+    function getCategoryStyle(category) {
+      if (!category) return { bg: 'bg-slate-100', text: 'text-slate-600', icon: 'zap' };
+      const map = {
+        '设计': { bg: 'bg-blue-100', text: 'text-blue-600', icon: 'palette' },
+        '代码': { bg: 'bg-emerald-100', text: 'text-emerald-600', icon: 'code-2' },
+        '写作': { bg: 'bg-purple-100', text: 'text-purple-600', icon: 'feather' },
+        '默认': { bg: 'bg-orange-100', text: 'text-orange-600', icon: 'sparkles' }
+      };
+      for(let key in map) if (category.includes(key)) return map[key];
+      return map['默认'];
+    }
+
+    function renderFilters() {
+      // 渲染分类 Datalist
+      elements.categoryOptions.innerHTML = state.categories.map(c => `<option value="${c}">`).join('');
+      
+      // 渲染分类 Chips
+      const allCats = ["全部", ...state.categories];
+      elements.categoryPills.innerHTML = allCats.map(cat => {
+        const val = cat === "全部" ? "" : cat;
+        const isActive = state.activeCategory === val;
+        // 统计数量
+        const count = val === "" ? state.prompts.length : state.prompts.filter(p => p.category === val).length;
+        
+        const baseClass = "px-4 py-1.5 rounded-full text-sm font-bold cursor-pointer transition-all border flex items-center gap-1.5";
+        const activeClass = isActive ? "bg-brand-600 text-white border-brand-600 shadow-md shadow-brand-500/20" : "bg-white text-slate-600 border-slate-200 hover:border-brand-300 hover:bg-brand-50";
+        
+        return `<button class="${baseClass} ${activeClass}" onclick="toggleCategory('${val}')">
+          ${cat} ${count > 0 ? `<span class="${isActive?'bg-white/20':'bg-slate-100 text-slate-400'} text-[10px] px-1.5 py-0.5 rounded-full">${count}</span>` : ''}
+        </button>`;
+      }).join('');
+
+      // 渲染标签 Chips
+      elements.tagFilters.innerHTML = ["全部", ...state.tags].map(tag => {
+        const val = tag === "全部" ? "" : tag;
+        const isActive = (val === "" && !state.activeTag) || state.activeTag === val;
+        const baseClass = "px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all";
+        const activeClass = isActive ? "bg-slate-800 text-white" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50";
+        return `<button class="${baseClass} ${activeClass}" onclick="toggleTag('${val}')">${tag === "全部" ? "全部标签" : "# "+tag}</button>`;
+      }).join('');
+    }
+
+    window.toggleCategory = (val) => { state.activeCategory = val; loadPrompts(); };
+    window.toggleTag = (val) => { state.activeTag = val; loadPrompts(); };
+
+    function renderPrompts() {
+      elements.resultCount.textContent = state.prompts.length;
+      if (state.prompts.length === 0) {
+        elements.promptList.innerHTML = `<div class="col-span-full py-20 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
+          <i data-lucide="ghost" class="w-12 h-12 mb-3 text-slate-300"></i><p>哎呀，这里空空如也</p>
+        </div>`;
+        lucide.createIcons();
+        return;
+      }
+
+      elements.promptList.innerHTML = state.prompts.map(prompt => {
+        const style = getCategoryStyle(prompt.category);
+        const tagsHtml = (prompt.tags || []).map(t => `<span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-bold border border-slate-200/50">${escapeHtml(t)}</span>`).join('');
+        
+        return `
+        <article class="bg-white rounded-3xl p-5 md:p-6 border border-slate-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all flex flex-col group relative">
+          <div class="flex justify-between items-start mb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl ${style.bg} ${style.text} flex items-center justify-center"><i data-lucide="${style.icon}" class="w-5 h-5"></i></div>
+              ${prompt.category ? `<span class="text-xs font-bold ${style.text} bg-white border border-slate-100 shadow-sm px-2 py-1 rounded-lg">${escapeHtml(prompt.category)}</span>` : ''}
+            </div>
+            <button class="text-slate-300 hover:text-amber-400 transition-colors" title="收藏功能预留"><i data-lucide="star" class="w-5 h-5"></i></button>
+          </div>
+          
+          <h3 class="font-bold text-[17px] text-slate-800 leading-snug mb-2 line-clamp-2">${escapeHtml(prompt.title)}</h3>
+          <p class="text-slate-500 text-xs leading-relaxed mb-4 line-clamp-3 flex-1 break-words">${escapeHtml(prompt.content)}</p>
+          
+          <div class="flex flex-wrap gap-1.5 mb-5 h-[22px] overflow-hidden">${tagsHtml}</div>
+          
+          <div class="grid grid-cols-3 gap-2 mt-auto border-t border-slate-50 pt-4">
+            <button class="flex items-center justify-center gap-1.5 py-2 rounded-xl text-brand-600 bg-brand-50 hover:bg-brand-100 text-xs font-bold transition-colors copy-btn" data-content="${encodeURIComponent(prompt.content)}">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i> 复制
+            </button>
+            <button class="flex items-center justify-center gap-1.5 py-2 rounded-xl text-slate-600 bg-slate-50 hover:bg-slate-100 text-xs font-bold transition-colors" onclick='editPrompt(${JSON.stringify(prompt).replace(/'/g, "&#39;")})'>
+              <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> 编辑
+            </button>
+            <button class="flex items-center justify-center gap-1.5 py-2 rounded-xl text-red-500 bg-red-50 hover:bg-red-100 text-xs font-bold transition-colors" onclick="deletePrompt(${prompt.id})">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </article>`;
+      }).join('');
+      
+      // 重新绑定 Lucide 图标和复制事件
+      lucide.createIcons();
+      $$('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const content = decodeURIComponent(e.currentTarget.dataset.content);
+          try {
+            await navigator.clipboard.writeText(content);
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600"></i> <span class="text-emerald-600">已复制</span>`;
+            btn.classList.replace('bg-brand-50', 'bg-emerald-50');
+            lucide.createIcons();
+            showToast("提示词已复制到剪贴板！");
+            setTimeout(() => { 
+              btn.innerHTML = originalHtml; 
+              btn.classList.replace('bg-emerald-50', 'bg-brand-50'); 
+              lucide.createIcons(); 
+            }, 1500);
+          } catch(err) { showToast("复制失败，请手动选择"); }
+        });
+      });
+    }
+
+    function renderCategoryManager() {
+      elements.categoryList.innerHTML = state.categories.length === 0 
+        ? `<div class="text-center py-6 text-sm text-slate-400">暂无自定义分类</div>`
+        : state.categories.map(cat => `
+          <div class="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl hover:shadow-sm transition-shadow">
+            <span class="font-bold text-sm text-slate-700 flex items-center gap-2">
+              <i data-lucide="folder" class="w-4 h-4 text-brand-500"></i> ${escapeHtml(cat)}
+            </span>
+            <div class="flex gap-2">
+              <button onclick="renameCategory('${escapeHtml(cat)}')" class="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+              <button onclick="deleteCategory('${escapeHtml(cat)}')" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash" class="w-4 h-4"></i></button>
+            </div>
+          </div>`).join('');
+      lucide.createIcons();
+    }
+
+    // --- 业务操作 ---
+    window.newPrompt = () => {
+      elements.promptForm.reset();
+      elements.promptId.value = "";
+      elements.formTitle.textContent = "发布提示词";
+      showView("edit");
+    };
+
+    window.editPrompt = (prompt) => {
+      elements.promptId.value = prompt.id;
+      elements.formTitle.textContent = "编辑提示词";
+      elements.titleInput.value = prompt.title;
+      elements.contentInput.value = prompt.content;
+      elements.categoryInput.value = prompt.category || "";
+      elements.tagsInput.value = (prompt.tags || []).join(", ");
+      showView("edit");
+    };
+
+    elements.promptForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const payload = {
+        title: elements.titleInput.value.trim(),
+        content: elements.contentInput.value.trim(),
+        category: elements.categoryInput.value.trim(),
+        tags: elements.tagsInput.value.split(/[,，]/).map(t => t.trim()).filter(Boolean)
+      };
+      const id = elements.promptId.value;
+      try {
+        await request(id ? `/api/prompts/${id}` : "/api/prompts", {
+          method: id ? "PUT" : "POST", body: JSON.stringify(payload)
+        });
+        showToast(id ? "提示词更新成功" : "提示词发布成功");
+        elements.promptForm.reset();
+        await loadOptions(); await loadPrompts();
+        showView("library");
+      } catch (error) { showToast(error.message); }
+    });
+    
+    elements.topSaveBtn.addEventListener('click', () => elements.promptForm.requestSubmit());
+
+    window.deletePrompt = async (id) => {
+      if (!confirm("此操作不可逆，确定要删除这条提示词吗？")) return;
+      try {
+        await request(`/api/prompts/${id}`, { method: "DELETE" });
+        showToast("已删除");
+        await loadOptions(); await loadPrompts();
+      } catch (e) { showToast(e.message); }
+    };
+
+    elements.categoryForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = elements.categoryNameInput.value.trim();
+      if(!name) return;
+      try {
+        await request("/api/categories", { method: "POST", body: JSON.stringify({ name }) });
+        elements.categoryNameInput.value = "";
+        showToast("分类添加成功");
+        await loadOptions();
+      } catch (e) { showToast(e.message); }
+    });
+
+    window.renameCategory = async (cat) => {
+      const name = prompt("请输入新的分类名称", cat);
+      if (!name || name.trim() === cat) return;
+      try {
+        await request(`/api/categories/${encodeURIComponent(cat)}`, { method: "PUT", body: JSON.stringify({ name: name.trim() }) });
+        showToast("分类已重命名");
+        await loadOptions(); await loadPrompts();
+      } catch (e) { showToast(e.message); }
+    };
+
+    window.deleteCategory = async (cat) => {
+      if (!confirm(`确定删除“${cat}”吗？相关提示词将被移入默认分类。`)) return;
+      try {
+        await request(`/api/categories/${encodeURIComponent(cat)}`, { method: "DELETE" });
+        if(state.activeCategory === cat) state.activeCategory = "";
+        showToast("分类已删除");
+        await loadOptions(); await loadPrompts();
+      } catch (e) { showToast(e.message); }
+    };
+
+    // --- 导入导出 ---
+    elements.exportBtn.addEventListener("click", async () => {
+      elements.dataStatus.textContent = "正在生成备份文件...";
+      try {
+        const response = await fetch("/api/export");
+        if (!response.ok) throw new Error("导出失败");
+        const blob = await response.blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `lingxi-prompts-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        link.click(); URL.revokeObjectURL(link.href);
+        elements.dataStatus.textContent = "JSON 数据已安全导出。";
+        showToast("导出成功！");
+      } catch (e) { elements.dataStatus.textContent = "导出失败，请检查网络状态。"; showToast(e.message); }
+    });
+
+    elements.importBtn.addEventListener("click", () => elements.importFileInput.click());
+    elements.importFileInput.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0]; if (!file) return;
+      if (!confirm("⚠️ 危险操作：导入将直接覆盖现有库中所有数据！强烈建议您先导出当前库作为备份。确定继续吗？")) {
+        e.target.value = ""; return;
+      }
+      elements.dataStatus.textContent = "正在读取解析并导入...";
+      const formData = new FormData(); formData.append("file", file);
+      try {
+        const response = await fetch("/api/import", { method: "POST", body: formData });
+        if (!response.ok) {
+          const problem = await response.json().catch(() => ({}));
+          throw new Error(problem.detail || "解析异常，请检查 JSON 格式");
+        }
+        elements.dataStatus.textContent = `恢复成功，从文件 [${file.name}] 导入完成。`;
+        showToast("数据导入成功！");
+        state.activeTag = ""; state.activeCategory = "";
+        await loadOptions(); await loadPrompts();
+        showView("library");
+      } catch (e) { 
+        elements.dataStatus.textContent = "导入失败，请检查文件。"; 
+        showToast(e.message); 
+      } finally { e.target.value = ""; }
+    });
+
+    // --- 工具与初始化 ---
+    function escapeHtml(str) { return String(str||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+    const debounce = (fn, delay=300) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; };
+
+    elements.keywordInput.addEventListener("input", debounce(loadPrompts));
+    elements.navButtons.forEach(btn => btn.addEventListener("click", () => {
+      if(btn.dataset.view === "edit") newPrompt(); else showView(btn.dataset.view);
+    }));
+
+    window.addEventListener("online", () => { updateNetworkStatus(); loadOptions(); loadPrompts(); });
+    window.addEventListener("offline", updateNetworkStatus);
+
+    async function init() {
+      lucide.createIcons();
+      updateNetworkStatus();
+      await loadOptions();
+      await loadPrompts();
+      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(()=>{});
+    }
+    
+    init();
+  </script>
 </body>
 </html>
