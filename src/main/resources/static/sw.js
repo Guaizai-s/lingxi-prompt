@@ -1,5 +1,5 @@
 // 升级缓存版本号，强制浏览器放弃旧缓存
-const CACHE_NAME = "lingxi-prompt-v6-modern";
+const CACHE_NAME = "lingxi-prompt-v7-network-first";
 
 // 更新缓存清单：移除了旧的 app.css 和 app.js，保留核心文件
 const SHELL = [
@@ -32,8 +32,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (new URL(request.url).pathname.startsWith("/api/")) {
+  const url = new URL(request.url);
+  if (url.pathname.startsWith("/api/")) {
     event.respondWith(fetch(request).catch(() => caches.match(request)));
+    return;
+  }
+
+  if (request.mode === "navigate" || url.pathname === "/" || url.pathname.endsWith(".html")) {
+    event.respondWith(
+      fetch(request).then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        return response;
+      }).catch(() => caches.match(request))
+    );
     return;
   }
 
